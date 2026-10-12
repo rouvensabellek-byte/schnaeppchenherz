@@ -252,9 +252,11 @@ async function main() {
     }
   };
 
-  const eisDeals = await safe('eis Sale', eisSale, null);
-  const eisTop = await safe('eis Beliebt', eisPopular, null);
-  const eisBox = await safe('eis Boxen', eisBoxes, null);
+  // eis.de sperrt die Server von GitHub aus; dort übernimmt das der Mac (scraper/mac-bot.sh)
+  const skipEis = process.env.SKIP_EIS === '1';
+  const eisDeals = skipEis ? null : await safe('eis Sale', eisSale, null);
+  const eisTop = skipEis ? null : await safe('eis Beliebt', eisPopular, null);
+  const eisBox = skipEis ? null : await safe('eis Boxen', eisBoxes, null);
   const amo = await safe('Amorelie', amorelie, null);
 
   // Was nicht geladen werden konnte, bleibt beim letzten Stand
@@ -324,7 +326,7 @@ async function main() {
     `Fertig: ${deals.length} Angebote, ${boxList.length} Boxen, ${Object.keys(history).length} Verläufe` +
       (errors.length ? `\nFehler: ${errors.join(' | ')}` : ''),
   );
-  if (errors.length === 4) process.exit(1);
+  if (errors.length === (skipEis ? 1 : 4)) process.exit(1);
 }
 
 await main();
