@@ -19,12 +19,15 @@ export type Product = {
 export type Ranked = Product & { rank: number; prevRank: number | null };
 export type Box = Product & { available: boolean; firstSeen: string };
 
+export type Category = { id: string; label: string; eis: Product[]; amo: Product[] };
+
 export type Latest = {
   updatedAt: string;
   errors: string[];
   deals: Product[];
   popular: Record<Shop, Ranked[]>;
   boxes: Box[];
+  categories?: Category[];
   twins: Record<string, string>;
 };
 
@@ -96,7 +99,8 @@ export function useDeals() {
 
 /** Alle bekannten Produkte nach ID – für Merkliste und Detailansicht */
 export function catalog(latest: Latest): Map<string, Product> {
-  const all = [...latest.boxes, ...latest.popular.eis, ...latest.popular.amo, ...latest.deals];
+  const cats = (latest.categories ?? []).flatMap((cat) => [...cat.eis, ...cat.amo]);
+  const all = [...cats, ...latest.boxes, ...latest.popular.eis, ...latest.popular.amo, ...latest.deals];
   return new Map(all.map((p) => [p.id, p]));
 }
 

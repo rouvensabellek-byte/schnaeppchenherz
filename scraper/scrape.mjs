@@ -150,6 +150,43 @@ async function eisBoxes() {
   return boxes;
 }
 
+// ---------------------------------------------------------------- Kategorien
+
+// Gemeinsame Kacheln: je Kachel die passende Kategorie-Seite bei eis.de und der Algolia-Filter bei Amorelie
+const MADE_FOR = 'multi_properties.made_for_the_pleasure_of.value';
+const CATEGORIES = [
+  { id: 'sie', label: 'Für sie', eis: '/lovetoys/fuer-frauen', amo: `${MADE_FOR}:"Für Sie"` },
+  { id: 'ihn', label: 'Für ihn', eis: '/lovetoys/fuer-maenner', amo: `${MADE_FOR}:"Für Ihn"` },
+  { id: 'paare', label: 'Für Paare', eis: '/lovetoys/fuer-paare', amo: 'hierarchicalCategories.lvl1:"Sexspielzeug > Paartoys"' },
+  { id: 'vibratoren', label: 'Vibratoren', eis: '/lovetoys/vibratoren', amo: 'hierarchicalCategories.lvl1:"Sexspielzeug > Vibratoren"' },
+  { id: 'dildos', label: 'Dildos', eis: '/lovetoys/dildos', amo: 'hierarchicalCategories.lvl1:"Sexspielzeug > Dildos"' },
+  { id: 'anal', label: 'Analtoys', eis: '/lovetoys/anal-toys', amo: 'hierarchicalCategories.lvl1:"Sexspielzeug > Analtoys"' },
+  { id: 'masturbatoren', label: 'Masturbatoren', eis: '/lovetoys/fuer-maenner/masturbatoren', amo: 'hierarchicalCategories.lvl1:"Sexspielzeug > Masturbatoren"' },
+  { id: 'penisringe', label: 'Penisringe', eis: '/lovetoys/cockringe', amo: 'hierarchicalCategories.lvl1:"Sexspielzeug > Penisringe"' },
+  { id: 'liebeskugeln', label: 'Liebeskugeln', eis: '/lovetoys/fuer-frauen/liebeskugeln', amo: 'hierarchicalCategories.lvl1:"Sexspielzeug > Liebeskugeln"' },
+  { id: 'sets', label: 'Sets & Boxen', eis: '/lovetoys/sexspielzeug-sets', amo: 'hierarchicalCategories.lvl1:"Sexspielzeug > Sets & Boxen"' },
+  { id: 'dessous', label: 'Dessous', eis: '/dessous', amo: 'hierarchicalCategories.lvl0:"Dessous"' },
+  { id: 'bdsm', label: 'BDSM', eis: '/bdsm', amo: 'hierarchicalCategories.lvl0:"BDSM"' },
+  { id: 'gleitgel', label: 'Gleitgel', eis: '/drogerie/gleitgele', amo: 'hierarchicalCategories.lvl1:"Zubehör & Drogerie > Gleitgele"' },
+  { id: 'drogerie', label: 'Drogerie & Pflege', eis: '/drogerie', amo: 'hierarchicalCategories.lvl0:"Zubehör & Drogerie"' },
+];
+const PER_CATEGORY = 40;
+
+/** Erste Seite jeder eis.de-Kategorie (dort ab Werk nach Beliebtheit sortiert) */
+async function eisCategories() {
+  const out = {};
+  for (const cat of CATEGORIES) {
+    try {
+      out[cat.id] = eisProducts(await get('https://www.eis.de' + cat.eis))
+        .filter((p) => !p.soldOut)
+        .slice(0, PER_CATEGORY);
+    } catch (e) {
+      console.warn('eis Kategorie', cat.id, e.message);
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- Amorelie
 
 /** Amorelie lädt Produkte aus Algolia; den (kurzlebigen) Suchschlüssel liefert die Seite mit */
@@ -209,7 +246,15 @@ async function amorelie() {
     .concat(await search({ query: 'überraschungsbox', hitsPerPage: '20' }))
     .filter((p) => BOX_RE.test(p.name))
     .map(({ soldOut, ...p }) => ({ ...p, available: !soldOut }));
-  return { sale: dedupe(sale).filter((p) => p.off > 0), popular, boxes: dedupe(boxes) };
+  const categories = {};
+  for (const cat of CATEGORIES) {
+    try {
+      categories[cat.id] = (await search({ filters: `${cat.amo} AND voorraad:1`, hitsPerPage: String(PER_CATEGORY) }));
+    } catch (e) {
+      console.warn('Amorelie Kategorie', cat.id, e.message);
+    }
+  }
+  return { sale: dedupe(sale).filter((p) => p.off > 0), popular, boxes: dedupe(boxes), categories };
 }
 
 // ---------------------------------------------------------------- Zusammenführen
@@ -257,6 +302,7 @@ async function main() {
   const eisDeals = skipEis ? null : await safe('eis Sale', eisSale, null);
   const eisTop = skipEis ? null : await safe('eis Beliebt', eisPopular, null);
   const eisBox = skipEis ? null : await safe('eis Boxen', eisBoxes, null);
+  const eisCats = skipEis ? null : await safe('eis Kategorien', eisCategories, null);
   const amo = await safe('Amorelie', amorelie, null);
 
   // Was nicht geladen werden konnte, bleibt beim letzten Stand
@@ -287,10 +333,19 @@ async function main() {
   }
   boxList.sort((a, b) => Number(b.available) - Number(a.available) || b.firstSeen.localeCompare(a.firstSeen));
 
+  // Kategorien: was in diesem Lauf fehlt, bleibt beim letzten Stand
+  const prevCats = new Map((prev?.categories ?? []).map((cat) => [cat.id, cat]));
+  const categories = CATEGORIES.map(({ id, label }) => ({
+    id,
+    label,
+    eis: eisCats?.[id]?.map(slim) ?? prevCats.get(id)?.eis ?? [],
+    amo: amo?.categories?.[id]?.map(slim) ?? prevCats.get(id)?.amo ?? [],
+  }));
+
   // Preisverlauf: ein Punkt pro Änderung, [Tag, Cent]
   const day = today();
   const cutoff = new Date(Date.now() - MAX_HISTORY_DAYS * 864e5).toISOString().slice(0, 10);
-  for (const p of [...deals, ...popular.eis, ...popular.amo, ...boxList]) {
+  for (const p of [...deals, ...popular.eis, ...popular.amo, ...boxList, ...categories.flatMap((cat) => [...cat.eis, ...cat.amo])]) {
     const h = (history[p.id] ??= { name: p.name, shop: p.shop, url: p.url, image: p.image, points: [] });
     Object.assign(h, { name: p.name, url: p.url, image: p.image, seen: day });
     const last = h.points.at(-1);
@@ -305,7 +360,15 @@ async function main() {
 
   // Gleiches Produkt in beiden Shops (über die EAN)
   const byEan = new Map();
-  for (const p of [...(eisDeals ?? []), ...(eisTop ?? []), ...(amo?.sale ?? []), ...(amo?.popular ?? [])]) {
+  const raw = [
+    ...(eisDeals ?? []),
+    ...(eisTop ?? []),
+    ...Object.values(eisCats ?? {}).flat(),
+    ...(amo?.sale ?? []),
+    ...(amo?.popular ?? []),
+    ...Object.values(amo?.categories ?? {}).flat(),
+  ];
+  for (const p of raw) {
     if (!p.ean) continue;
     const ids = byEan.get(p.ean) ?? new Set();
     ids.add(p.id);
@@ -319,7 +382,7 @@ async function main() {
     if (eis && am) Object.assign(twins, { [eis]: am, [am]: eis });
   }
 
-  writeJson('latest.json', { updatedAt: now, errors, deals, popular, boxes: boxList, twins });
+  writeJson('latest.json', { updatedAt: now, errors, deals, popular, boxes: boxList, categories, twins });
   writeJson('history.json', history);
   writeJson('state.json', state);
   console.log(

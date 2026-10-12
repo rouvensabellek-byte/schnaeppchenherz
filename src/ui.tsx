@@ -19,6 +19,7 @@ const ICONS = {
   check: 'M20 6L9 17l-5-5',
   out: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
   chart: 'M3 3v18h18M7 14l4-4 3 3 5-6',
+  grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
 };
 export type IconName = keyof typeof ICONS;
 

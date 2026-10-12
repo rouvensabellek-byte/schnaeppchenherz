@@ -6,6 +6,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Product, useDeals } from './src/data';
 import { Boxes } from './src/screens/Boxes';
+import { Categories } from './src/screens/Categories';
 import { Deals } from './src/screens/Deals';
 import { Detail } from './src/screens/Detail';
 import { Popular } from './src/screens/Popular';
@@ -14,10 +15,11 @@ import { c, font } from './src/theme';
 import { Icon, IconName, tap } from './src/ui';
 import { useWatch } from './src/watch';
 
-type Tab = 'deals' | 'popular' | 'boxes' | 'watch';
+type Tab = 'deals' | 'cats' | 'popular' | 'boxes' | 'watch';
 
 const TABS: { id: Tab; icon: IconName; label: string }[] = [
   { id: 'deals', icon: 'tag', label: 'Angebote' },
+  { id: 'cats', icon: 'grid', label: 'Kategorien' },
   { id: 'popular', icon: 'star', label: 'Beliebt' },
   { id: 'boxes', icon: 'gift', label: 'Mystery-Boxen' },
   { id: 'watch', icon: 'heart', label: 'Merkliste' },
@@ -62,6 +64,7 @@ function Shell() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {tab === 'deals' && <Deals {...common} history={history} newBoxes={newBoxes} openBoxes={() => setTab('boxes')} />}
+        {tab === 'cats' && <Categories {...common} history={history} />}
         {tab === 'popular' && <Popular {...common} />}
         {tab === 'boxes' && <Boxes {...common} newBoxes={newBoxes} />}
         {tab === 'watch' && <Watchlist latest={latest} history={history} watch={watch} open={setOpen} />}
@@ -125,6 +128,6 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
   },
-  navBtn: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  navBtn: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
   dot: { position: 'absolute', top: 10, right: 11, width: 10, height: 10, borderRadius: 5, backgroundColor: c.hot, borderWidth: 2, borderColor: c.plum },
 });
