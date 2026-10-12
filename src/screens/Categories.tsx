@@ -44,10 +44,12 @@ function Tile({ cat, i, onPress }: { cat: Category; i: number; onPress: () => vo
       accessibilityRole="button"
       accessibilityLabel={`${cat.label}, ${count} Produkte`}
     >
-      <Text style={[st.tileLabel, { color: t.ink }]} numberOfLines={2}>
-        {cat.label}
-      </Text>
-      <Text style={[st.tileCount, { color: t.ink }]}>{count} Produkte</Text>
+      <View style={{ gap: 2 }}>
+        <Text style={[st.tileLabel, { color: t.ink }]} numberOfLines={2}>
+          {cat.label}
+        </Text>
+        <Text style={[st.tileCount, { color: t.ink }]}>{count} Produkte</Text>
+      </View>
       <View style={st.pics}>
         {pics.map((p, k) => (
           <View key={p.id} style={[st.pic, { marginLeft: k ? -18 : 0, zIndex: 2 - k }]}>
@@ -157,7 +159,7 @@ const st = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120, gap: 16 },
   lead: { fontFamily: font.body, fontSize: 15, color: c.inkSoft, lineHeight: 21, marginTop: -6 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  tile: { width: '47.5%', flexGrow: 1, height: 132, borderRadius: 26, padding: 16, justifyContent: 'space-between', overflow: 'hidden' },
+  tile: { width: '47.5%', flexGrow: 1, height: 132, borderRadius: 26, padding: 16, overflow: 'hidden' },
   tileLabel: { fontFamily: font.display, fontSize: 19, lineHeight: 23 },
   tileCount: { fontFamily: font.bold, fontSize: 12, opacity: 0.85 },
   pics: { position: 'absolute', right: 12, bottom: 12, flexDirection: 'row' },
