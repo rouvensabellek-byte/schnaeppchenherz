@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { History, Latest, Product, catalog, stats } from '../data';
 import { c, euro, font, shopStyle } from '../theme';
+import { Backdrop } from '../glass';
 import { Icon, PriceChart, ShopChip, Thumb, tap } from '../ui';
 
 export function Detail({ p, latest, history, watched, onToggleWatch, onClose }: { p: Product; latest: Latest; history: History; watched: boolean; onToggleWatch: () => void; onClose: () => void }) {
@@ -31,6 +32,7 @@ export function Detail({ p, latest, history, watched, onToggleWatch, onClose }: 
 
   return (
     <View style={[st.root, { paddingTop: insets.top + 8 }]}>
+      <Backdrop />
       <View style={st.top}>
         <Pressable onPress={onClose} style={st.round} accessibilityRole="button" accessibilityLabel="Zurück" hitSlop={8}>
           <Icon name="back" size={20} width={2.2} color="#3F2A1F" />
@@ -115,22 +117,22 @@ export function Detail({ p, latest, history, watched, onToggleWatch, onClose }: 
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FFF6EA' },
+  root: { flex: 1 },
   top: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20 },
   round: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20, gap: 16 },
   kicker: { fontFamily: font.black, fontSize: 12, letterSpacing: 0.7, textTransform: 'uppercase', color: '#8C4A1F' },
   title: { fontFamily: font.display, fontSize: 22, lineHeight: 27, color: '#3F2A1F' },
   legend: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14 },
-  chartCard: { backgroundColor: '#fff', borderRadius: 26, paddingTop: 16, paddingHorizontal: 14, paddingBottom: 8 },
+  chartCard: { backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 26, paddingTop: 16, paddingHorizontal: 14, paddingBottom: 8 },
   tiles: { flexDirection: 'row', gap: 10 },
   tile: { flex: 1, borderRadius: 20, padding: 12, gap: 4 },
   tileLabel: { fontFamily: font.bold, fontSize: 12 },
   tileValue: { fontFamily: font.display, fontSize: 18, color: '#3F2A1F' },
   was: { fontFamily: font.semi, fontSize: 13, color: '#7A5A48' },
-  hint: { backgroundColor: '#fff', borderRadius: 22, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' },
+  hint: { backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 22, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' },
   hintText: { flex: 1, fontFamily: font.semi, fontSize: 14, lineHeight: 20, color: '#3F2A1F' },
-  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: '#FFF6EA' },
+  bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12 },
   cta: { height: 58, borderRadius: 29, backgroundColor: '#3F2A1F', flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center' },
   ctaText: { fontFamily: font.black, fontSize: 16, color: '#FFF6EA' },
 });

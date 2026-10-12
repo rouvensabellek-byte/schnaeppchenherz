@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { dataUrl } from './config';
 
 export type Shop = 'eis' | 'amo';
@@ -81,13 +81,16 @@ export function useDeals() {
   const [history, setHistory] = useState<History>(bundled.history);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestRef = useRef(bundled.latest);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [l, h] = await Promise.all([fetchJson<Latest>('latest.json'), fetchJson<History>('history.json')]);
-      if (l && h) {
+      // GitHub liefert manchmal noch ein paar Minuten den alten Stand aus – nie rückwärts gehen
+      if (l && h && l.updatedAt >= latestRef.current.updatedAt) {
+        latestRef.current = l;
         setLatest(l);
         setHistory(h);
         AsyncStorage.setItem(CACHE, JSON.stringify({ latest: l, history: h })).catch(() => {});
@@ -105,6 +108,7 @@ export function useDeals() {
         if (!raw) return;
         const cached = JSON.parse(raw) as { latest: Latest; history: History };
         if (cached.latest.updatedAt > bundled.latest.updatedAt) {
+          latestRef.current = cached.latest;
           setLatest(cached.latest);
           setHistory(cached.history);
         }

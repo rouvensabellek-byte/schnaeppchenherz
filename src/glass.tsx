@@ -32,9 +32,10 @@ export function Glass({
     );
   }
   return (
-    <View style={[{ borderRadius: radius, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.9)' }, style]}>
-      <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: tint }]} />
+    <View style={[{ borderRadius: radius, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.9)', zIndex: 0 }, style]}>
+      {/* zIndex -1: Unschärfe immer hinter dem Inhalt, auch bei Eingabefeldern im Web */}
+      <BlurView intensity={40} tint="light" style={[StyleSheet.absoluteFill, { zIndex: -1 }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: tint, zIndex: -1 }]} />
       {children}
     </View>
   );

@@ -4,6 +4,7 @@ import { Box, History, Latest, Product, Shop } from '../data';
 import { c, euro, font } from '../theme';
 import { Box3D, Empty, H2, Icon, ProductCard, Segmented, tap } from '../ui';
 import { TodaySection } from './Today';
+import { Glass } from '../glass';
 
 type Filter = 'all' | Shop;
 type Sort = 'off' | 'price';
@@ -59,26 +60,27 @@ export function Deals({
 
       {box ? (
         <Pressable
-          style={st.boxBanner}
           onPress={() => {
             tap();
             openBoxes();
           }}
           accessibilityRole="button"
         >
-          <View style={st.boxIcon}>
-            <Box3D />
-          </View>
-          <View style={{ flex: 1, gap: 3 }}>
-            <Text style={st.boxKicker}>{newBoxes.length > 1 ? `${newBoxes.length} neue Mystery-Boxen` : 'Neu · Mystery-Box'}</Text>
-            <Text style={st.boxTitle} numberOfLines={1}>
-              {box.name} · {euro(box.price)}
-            </Text>
-            <Text style={st.boxSub}>
-              bei {box.shop === 'eis' ? 'eis.de' : 'Amorelie'} · {ago(box.firstSeen)}
-            </Text>
-          </View>
-          <Icon name="chevron" size={20} color={c.mintInk} width={2.2} />
+          <Glass style={st.boxBanner} tint="rgba(200,240,220,0.5)">
+            <View style={st.boxIcon}>
+              <Box3D />
+            </View>
+            <View style={{ flex: 1, gap: 3 }}>
+              <Text style={st.boxKicker}>{newBoxes.length > 1 ? `${newBoxes.length} neue Mystery-Boxen` : 'Neu · Mystery-Box'}</Text>
+              <Text style={st.boxTitle} numberOfLines={1}>
+                {box.name} · {euro(box.price)}
+              </Text>
+              <Text style={st.boxSub}>
+                bei {box.shop === 'eis' ? 'eis.de' : 'Amorelie'} · {ago(box.firstSeen)}
+              </Text>
+            </View>
+            <Icon name="chevron" size={20} color={c.mintInk} width={2.2} />
+          </Glass>
         </Pressable>
       ) : null}
 
@@ -133,7 +135,7 @@ const st = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
   date: { fontFamily: font.semi, fontSize: 14, color: c.inkSoft },
   hello: { fontFamily: font.display, fontSize: 30, color: c.ink },
-  boxBanner: { backgroundColor: c.mint, borderRadius: 26, padding: 16, flexDirection: 'row', gap: 14, alignItems: 'center' },
+  boxBanner: { borderRadius: 26, padding: 16, flexDirection: 'row', gap: 14, alignItems: 'center' },
   boxIcon: { width: 56, height: 56, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   boxKicker: { fontFamily: font.black, fontSize: 12, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mintInk },
   boxTitle: { fontFamily: font.displayMedium, fontSize: 17, color: c.ink },

@@ -49,6 +49,17 @@ Den QR-Code mit der iPhone-Kamera scannen, dann öffnet sich Expo Go.
 
 Lokal testen geht mit `node scraper/scrape.mjs`. Ohne `NTFY_TOPIC` werden die Alarme nur in die Konsole geschrieben.
 
+## Mystery-Box-Preisalarm und SMS
+
+- Die Grenze wird in der App unter *Mystery-Boxen → Preisalarm* eingestellt. Die App schickt sie an `ntfy.sh/<Thema>-config`. Der Scraper liest sie beim nächsten Lauf und speichert sie in `data/state.json`. ntfy hebt Nachrichten nur 12 Stunden auf, deshalb muss der Scraper in dieser Zeit einmal laufen.
+- Wenn eine lieferbare Box höchstens so viel kostet, kommt eine Push-Nachricht über ntfy. Das passiert pro Box und Preis nur einmal.
+- **Automatische SMS (optional):** Dafür braucht es ein Konto bei [Twilio](https://www.twilio.com). Das kostet ein paar Cent pro SMS. Danach diese Secrets setzen:
+  - auf GitHub: `TWILIO_SID`, `TWILIO_TOKEN`, `TWILIO_FROM` (die Twilio-Nummer) und `SMS_TO` (die Empfänger, mehrere mit Komma getrennt, im Format +49…)
+  - für den Mac-Bot dieselben Zeilen im Format `KEY=Wert` in `~/Library/Application Support/schnaeppchenherz-bot/sms.env`
+
+  Ohne diese Secrets wird nichts verschickt.
+- **SMS von Hand:** Der Sprechblasen-Knopf an jeder Box öffnet die Nachrichten-App mit fertigem Text an die Nummer, die in der App eingetragen ist.
+
 ## Grenzen
 
 - Es gibt keine offiziellen Schnittstellen. Wenn ein Shop seine Seite umbaut, kann der Scraper brechen. Fehler landen in `latest.json → errors`, und für den betroffenen Shop bleibt der letzte Stand erhalten.
