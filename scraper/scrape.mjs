@@ -177,9 +177,13 @@ async function eisCategories() {
   const out = {};
   for (const cat of CATEGORIES) {
     try {
-      out[cat.id] = eisProducts(await get('https://www.eis.de' + cat.eis))
+      const html = await get('https://www.eis.de' + cat.eis);
+      const items = eisProducts(html)
         .filter((p) => !p.soldOut)
         .slice(0, PER_CATEGORY);
+      // Gesamtzahl der Kategorie, wie eis.de sie selbst angibt
+      const total = Number(rscPayload(html).match(/"totalProducts":(\d+)/)?.[1] ?? items.length);
+      out[cat.id] = Object.assign(items, { total });
     } catch (e) {
       console.warn('eis Kategorie', cat.id, e.message);
     }
@@ -209,7 +213,8 @@ async function amorelieSearch() {
       body: JSON.stringify({ params: new URLSearchParams({ attributesToHighlight: '[]', attributesToSnippet: '[]', ...params }).toString() }),
     });
     if (!res.ok) throw new Error(`Algolia ${res.status}`);
-    return (await res.json()).hits.map(amorelieProduct);
+    const json = await res.json();
+    return Object.assign(json.hits.map(amorelieProduct), { total: json.nbHits });
   };
 }
 
@@ -249,7 +254,9 @@ async function amorelie() {
   const categories = {};
   for (const cat of CATEGORIES) {
     try {
-      categories[cat.id] = (await search({ filters: `${cat.amo} AND voorraad:1`, hitsPerPage: String(PER_CATEGORY) }));
+      // Ohne Lager-Filter, damit die Gesamtzahl der des Shops entspricht; Ausverkauftes fliegt danach raus
+      const hits = await search({ filters: cat.amo, hitsPerPage: String(PER_CATEGORY * 2) });
+      categories[cat.id] = Object.assign(hits.filter((p) => !p.soldOut).slice(0, PER_CATEGORY), { total: hits.total });
     } catch (e) {
       console.warn('Amorelie Kategorie', cat.id, e.message);
     }
@@ -340,6 +347,10 @@ async function main() {
     label,
     eis: eisCats?.[id]?.map(slim) ?? prevCats.get(id)?.eis ?? [],
     amo: amo?.categories?.[id]?.map(slim) ?? prevCats.get(id)?.amo ?? [],
+    total: {
+      eis: eisCats?.[id]?.total ?? prevCats.get(id)?.total?.eis ?? null,
+      amo: amo?.categories?.[id]?.total ?? prevCats.get(id)?.total?.amo ?? null,
+    },
   }));
 
   // Preisverlauf: ein Punkt pro Änderung, [Tag, Cent]

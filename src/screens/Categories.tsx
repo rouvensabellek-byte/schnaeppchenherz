@@ -16,6 +16,9 @@ const TILE = [
 ];
 
 type Filter = 'all' | Shop;
+
+const num = (n: number) => n.toLocaleString('de-DE');
+const totalOf = (cat: Category, shop: Shop) => cat.total?.[shop] ?? cat[shop].length;
 type Sort = 'popular' | 'off' | 'price';
 
 /** Beliebt: abwechselnd eis.de und Amorelie, jeweils in Shop-Reihenfolge */
@@ -30,7 +33,7 @@ function interleave(a: Product[], b: Product[]) {
 
 function Tile({ cat, i, onPress }: { cat: Category; i: number; onPress: () => void }) {
   const t = TILE[i % TILE.length];
-  const count = cat.eis.length + cat.amo.length;
+  const count = totalOf(cat, 'eis') + totalOf(cat, 'amo');
   const pics = interleave(cat.eis, cat.amo)
     .filter((p) => p.image)
     .slice(0, 2);
@@ -48,7 +51,7 @@ function Tile({ cat, i, onPress }: { cat: Category; i: number; onPress: () => vo
         <Text style={[st.tileLabel, { color: t.ink }]} numberOfLines={2}>
           {cat.label}
         </Text>
-        <Text style={[st.tileCount, { color: t.ink }]}>{count} Produkte</Text>
+        <Text style={[st.tileCount, { color: t.ink }]}>{num(count)} Produkte</Text>
       </View>
       <View style={st.pics}>
         {pics.map((p, k) => (
@@ -86,6 +89,9 @@ function CategoryList({ cat, history, onBack, open }: { cat: Category; history: 
         </Pressable>
         <H1>{cat.label}</H1>
       </View>
+      <Text style={st.lead}>
+        {num(totalOf(cat, 'eis'))} bei eis.de · {num(totalOf(cat, 'amo'))} bei Amorelie. Hier siehst du die {list.length} beliebtesten.
+      </Text>
       <Segmented<Filter>
         value={filter}
         onChange={setFilter}

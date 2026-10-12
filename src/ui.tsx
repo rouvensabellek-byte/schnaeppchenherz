@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { ReactNode } from 'react';
+import { createContext, ReactNode, useContext } from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { HistoryEntry, Product, Shop } from './data';
@@ -32,6 +32,10 @@ export function Icon({ name, size = 22, color = c.ink, fill = 'none', width = 2 
 }
 
 // ---------------------------------------------------------------- Kleinteile
+
+/** Öffnet die Detailansicht (Preisverlauf); ein normaler Tipp führt direkt in den Shop */
+export const DetailsContext = createContext<(p: Product) => void>(() => {});
+export const useDetails = () => useContext(DetailsContext);
 
 export const tap = () => Haptics.selectionAsync().catch(() => {});
 
@@ -176,15 +180,20 @@ export function PriceChart({ series, width, height = 170 }: { series: { entry: H
 
 // ---------------------------------------------------------------- Produktkarte
 
-export function ProductCard({ p, entry, onPress, right }: { p: Product; entry?: HistoryEntry; onPress: () => void; right?: ReactNode }) {
+export function ProductCard({ p, entry, onPress }: { p: Product; entry?: HistoryEntry; onPress: () => void }) {
+  const details = useDetails();
   return (
     <Pressable
       onPress={() => {
         tap();
         onPress();
       }}
-      accessibilityRole="button"
-      accessibilityLabel={`${p.name}, ${euro(p.price)}`}
+      onLongPress={() => {
+        tap();
+        details(p);
+      }}
+      accessibilityRole="link"
+      accessibilityLabel={`${p.name}, ${euro(p.price)}, im Shop öffnen`}
       style={({ pressed }) => [s.card, pressed && { transform: [{ scale: 0.98 }] }]}
     >
       <View>
@@ -205,7 +214,18 @@ export function ProductCard({ p, entry, onPress, right }: { p: Product; entry?: 
           {p.was ? <Text style={s.was}>{p.wasKind === 'uvp' ? 'UVP ' : ''}{euro(p.was)}</Text> : null}
         </View>
       </View>
-      {right ?? <Sparkline entry={entry} color={c.hot} />}
+      <Pressable
+        onPress={() => {
+          tap();
+          details(p);
+        }}
+        hitSlop={8}
+        style={s.chartBtn}
+        accessibilityRole="button"
+        accessibilityLabel={`Preisverlauf von ${p.name}`}
+      >
+        {entry && entry.points.length > 1 ? <Sparkline entry={entry} color={c.hot} /> : <Icon name="chart" size={20} color={c.hot} />}
+      </Pressable>
     </Pressable>
   );
 }
@@ -236,6 +256,7 @@ export const s = StyleSheet.create({
   priceRow: { flexDirection: 'row', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' },
   price: { fontFamily: font.display, fontSize: 18, color: c.roseInk },
   was: { fontFamily: font.semi, fontSize: 13, color: c.inkSoft, textDecorationLine: 'line-through' },
+  chartBtn: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: c.roseSoft, paddingHorizontal: 4 },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 48, paddingHorizontal: 24 },
   emptyTitle: { fontFamily: font.displayMedium, fontSize: 20, color: c.ink, textAlign: 'center' },
   emptyText: { fontFamily: font.body, fontSize: 15, color: c.inkSoft, textAlign: 'center', lineHeight: 21 },

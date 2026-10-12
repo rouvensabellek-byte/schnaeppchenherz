@@ -3,7 +3,7 @@ import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View 
 import { NTFY_TOPIC } from '../config';
 import { Box, Latest, Product } from '../data';
 import { c, euro, font } from '../theme';
-import { Box3D, Empty, H1, H2, Icon, ShopChip, Thumb, tap } from '../ui';
+import { Box3D, Empty, H1, H2, Icon, ShopChip, Thumb, tap, useDetails } from '../ui';
 
 const fmtDay = (iso: string) => {
   const d = new Date(iso);
@@ -11,6 +11,7 @@ const fmtDay = (iso: string) => {
 };
 
 function BoxRow({ b, isNew, onPress }: { b: Box; isNew: boolean; onPress: () => void }) {
+  const details = useDetails();
   return (
     <Pressable
       style={[st.row, !b.available && { opacity: 0.55 }]}
@@ -18,7 +19,8 @@ function BoxRow({ b, isNew, onPress }: { b: Box; isNew: boolean; onPress: () => 
         tap();
         onPress();
       }}
-      accessibilityRole="button"
+      onLongPress={() => details(b)}
+      accessibilityRole="link"
       accessibilityLabel={`${b.name}, ${euro(b.price)}${b.available ? '' : ', ausverkauft'}`}
     >
       <Thumb p={b} size={64} />

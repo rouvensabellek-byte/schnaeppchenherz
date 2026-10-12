@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Latest, Product, Ranked, Shop } from '../data';
 import { c, euro, font } from '../theme';
-import { Empty, H1, Segmented, Thumb, tap } from '../ui';
+import { Empty, H1, Segmented, Thumb, tap, useDetails } from '../ui';
 
 const RANK_BG = [c.lavender, c.roseSoft, '#D6ECFF', c.mint];
 
@@ -16,6 +16,7 @@ function Trend({ r }: { r: Ranked }) {
 
 export function Popular({ latest, loading, onRefresh, open }: { latest: Latest; loading: boolean; onRefresh: () => void; open: (p: Product) => void }) {
   const [shop, setShop] = useState<Shop>('eis');
+  const details = useDetails();
   const list = latest.popular[shop];
 
   return (
@@ -40,6 +41,7 @@ export function Popular({ latest, loading, onRefresh, open }: { latest: Latest; 
                 tap();
                 open(r);
               }}
+              onLongPress={() => details(r)}
               accessibilityRole="button"
               accessibilityLabel={`Platz ${r.rank}: ${r.name}`}
             >

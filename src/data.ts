@@ -19,7 +19,14 @@ export type Product = {
 export type Ranked = Product & { rank: number; prevRank: number | null };
 export type Box = Product & { available: boolean; firstSeen: string };
 
-export type Category = { id: string; label: string; eis: Product[]; amo: Product[] };
+export type Category = {
+  id: string;
+  label: string;
+  eis: Product[];
+  amo: Product[];
+  /** Gesamtzahl laut Shop; geladen werden nur die beliebtesten 40 je Shop */
+  total?: Record<Shop, number | null>;
+};
 
 export type Latest = {
   updatedAt: string;

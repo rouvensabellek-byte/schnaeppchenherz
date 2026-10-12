@@ -1,6 +1,7 @@
 import { Fredoka_500Medium, Fredoka_600SemiBold } from '@expo-google-fonts/fredoka';
 import { Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
 import { StatusBar } from 'expo-status-bar';
+import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +13,7 @@ import { Detail } from './src/screens/Detail';
 import { Popular } from './src/screens/Popular';
 import { Watchlist } from './src/screens/Watchlist';
 import { c, font } from './src/theme';
-import { Icon, IconName, tap } from './src/ui';
+import { DetailsContext, Icon, IconName, tap } from './src/ui';
 import { useWatch } from './src/watch';
 
 type Tab = 'deals' | 'cats' | 'popular' | 'boxes' | 'watch';
@@ -57,56 +58,60 @@ function Shell() {
   const [open, setOpen] = useState<Product | null>(null);
   const boxBadge = newBoxes.length > 0;
 
-  const common = { latest, loading, onRefresh: refresh, open: setOpen };
+  // Tipp auf ein Produkt: direkt zur Produktseite im Shop
+  const openShop = (p: Product) => WebBrowser.openBrowserAsync(p.url).catch(() => {});
+  const common = { latest, loading, onRefresh: refresh, open: openShop };
 
   return (
-    <View style={styles.root}>
-      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        {tab === 'deals' && <Deals {...common} history={history} newBoxes={newBoxes} openBoxes={() => setTab('boxes')} />}
-        {tab === 'cats' && <Categories {...common} history={history} />}
-        {tab === 'popular' && <Popular {...common} />}
-        {tab === 'boxes' && <Boxes {...common} newBoxes={newBoxes} />}
-        {tab === 'watch' && <Watchlist latest={latest} history={history} watch={watch} open={setOpen} />}
-      </SafeAreaView>
+    <DetailsContext.Provider value={setOpen}>
+      <View style={styles.root}>
+        <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {tab === 'deals' && <Deals {...common} history={history} newBoxes={newBoxes} openBoxes={() => setTab('boxes')} />}
+          {tab === 'cats' && <Categories {...common} history={history} />}
+          {tab === 'popular' && <Popular {...common} />}
+          {tab === 'boxes' && <Boxes {...common} newBoxes={newBoxes} />}
+          {tab === 'watch' && <Watchlist latest={latest} history={history} watch={watch} open={openShop} />}
+        </SafeAreaView>
 
-      <View style={[styles.nav, { bottom: Math.max(insets.bottom, 12) + 4 }]}>
-        {TABS.map((t) => {
-          const active = t.id === tab;
-          return (
-            <Pressable
-              key={t.id}
-              onPress={() => {
-                tap();
-                setTab(t.id);
-              }}
-              style={[styles.navBtn, active && { backgroundColor: c.rose }]}
-              accessibilityRole="tab"
-              accessibilityLabel={t.label}
-              accessibilityState={{ selected: active }}
-            >
-              <Icon name={t.icon} color={active ? c.ink : c.navIcon} />
-              {t.id === 'boxes' && boxBadge && !active ? <View style={styles.dot} /> : null}
-            </Pressable>
-          );
-        })}
+        <View style={[styles.nav, { bottom: Math.max(insets.bottom, 12) + 4 }]}>
+          {TABS.map((t) => {
+            const active = t.id === tab;
+            return (
+              <Pressable
+                key={t.id}
+                onPress={() => {
+                  tap();
+                  setTab(t.id);
+                }}
+                style={[styles.navBtn, active && { backgroundColor: c.rose }]}
+                accessibilityRole="tab"
+                accessibilityLabel={t.label}
+                accessibilityState={{ selected: active }}
+              >
+                <Icon name={t.icon} color={active ? c.ink : c.navIcon} />
+                {t.id === 'boxes' && boxBadge && !active ? <View style={styles.dot} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Modal visible={!!open} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setOpen(null)}>
+          <SafeAreaProvider>
+            {open ? (
+              <Detail
+                p={open}
+                latest={latest}
+                history={history}
+                watched={isWatched(open.id)}
+                onToggleWatch={() => toggle(open)}
+                onClose={() => setOpen(null)}
+              />
+            ) : null}
+          </SafeAreaProvider>
+        </Modal>
       </View>
-
-      <Modal visible={!!open} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setOpen(null)}>
-        <SafeAreaProvider>
-          {open ? (
-            <Detail
-              p={open}
-              latest={latest}
-              history={history}
-              watched={isWatched(open.id)}
-              onToggleWatch={() => toggle(open)}
-              onClose={() => setOpen(null)}
-            />
-          ) : null}
-        </SafeAreaProvider>
-      </Modal>
-    </View>
+    </DetailsContext.Provider>
   );
 }
 
