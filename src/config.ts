@@ -1,6 +1,6 @@
 // Nach dem Anlegen des GitHub-Repos hier Benutzername und Repo-Name eintragen.
 // Solange GITHUB_USER leer ist, zeigt die App den mitgelieferten Datenstand.
-export const GITHUB_USER = '';
+export const GITHUB_USER = 'rouvensabellek-byte';
 export const GITHUB_REPO = 'schnaeppchenherz';
 export const BRANCH = 'main';
 
