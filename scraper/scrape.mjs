@@ -80,7 +80,7 @@ function eisProducts(html) {
     const key = m[1];
     if (seen.has(key)) return;
     const priceObj = objectAt(s, m.index + m[0].length - 1);
-    if (!priceObj?.withTax) return;
+    if (priceObj?.withTax == null) return;
     const chunk = s.slice(m.index, starts[i + 1]?.index ?? m.index + 20000);
     const name = cleanName(JSON.parse(`"${m[2]}"`));
     const price = priceObj.withTax;
@@ -99,6 +99,11 @@ function eisProducts(html) {
       soldOut: field(chunk, /"isSoldOut":(true|false)/) === 'true',
       bestseller: /"label":"bestseller","value":"bestseller"/.test(chunk),
       ean: field(chunk, /"key":"ean"[^}]*"value":"(\d{8,14})"/) ?? null,
+      // Tagestipp / Gratisartikel: kostenlos ab Mindestbestellwert, „Warenwert“ = Vergleichspreis
+      label: field(chunk, /"label":"([^"]*)","composedMaterials"/) ?? null,
+      dealPos: Number(field(chunk, /"dailyDealPosition":\{[^{]*"values":\{"id":\d+,"label":"(\d+)"/) ?? 0),
+      minOrder: Number(field(chunk, /"price\.minimumOrderValue":\{[^{]*"values":\[\{"fieldSet":\[\[\{"value":"(\d+)"/) ?? 0) || null,
+      worth: Number(field(chunk, /"price\.comparisonPrice":\{[^{]*"values":\[\{"fieldSet":\[\[\{"value":"(\d+)"/) ?? 0) || null,
     });
   });
   return [...seen.values()];
@@ -109,12 +114,12 @@ async function eisSale() {
   const lastPage = Math.min(Number(rscPayload(first).match(/"lastPage":(\d+)/)?.[1] ?? 1), 5);
   const all = eisProducts(first);
   for (let p = 2; p <= lastPage; p++) all.push(...eisProducts(await get(`https://www.eis.de/sale?page=${p}`)));
-  return dedupe(all).filter((p) => p.off > 0 && !p.soldOut);
+  return dedupe(all).filter((p) => p.price > 0 && p.off > 0 && !p.soldOut);
 }
 
 async function eisPopular() {
   // Die Kategorie-Seite ist ab Werk nach Beliebtheit sortiert
-  return eisProducts(await get('https://www.eis.de/lovetoys')).filter((p) => !p.soldOut).slice(0, 10);
+  return eisProducts(await get('https://www.eis.de/lovetoys')).filter((p) => p.price > 0 && !p.soldOut).slice(0, 10);
 }
 
 async function eisBoxes() {
@@ -179,7 +184,7 @@ async function eisCategories() {
     try {
       const html = await get('https://www.eis.de' + cat.eis);
       const items = eisProducts(html)
-        .filter((p) => !p.soldOut)
+        .filter((p) => p.price > 0 && !p.soldOut)
         .slice(0, PER_CATEGORY);
       // Gesamtzahl der Kategorie, wie eis.de sie selbst angibt
       const total = Number(rscPayload(html).match(/"totalProducts":(\d+)/)?.[1] ?? items.length);
@@ -189,6 +194,22 @@ async function eisCategories() {
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------- Tagesdeals
+
+/** eis.de: Tagestipp (gratis ab Mindestbestellwert), weitere Gratisartikel und reduzierte Sets */
+async function eisDaily() {
+  const home = eisProducts(await get('https://www.eis.de/'));
+  const freePage = eisProducts(await get('https://www.eis.de/lovetoys/kostenlose-toys'));
+  const tips = home.filter((p) => p.label === 'Tagestipp' && p.dealPos > 0 && !p.soldOut).sort((a, b) => a.dealPos - b.dealPos);
+  const tipIds = new Set(tips.map((p) => p.id));
+  const gifts = dedupe([...freePage, ...home.filter((p) => p.label === 'Kostenlos')]).filter((p) => p.price === 0 && !p.soldOut && !tipIds.has(p.id));
+  const bundles = eisProducts(await get('https://www.eis.de/lovetoys/sexspielzeug-sets'))
+    .filter((p) => p.price > 0 && p.off > 0 && !p.soldOut)
+    .sort((a, b) => b.off - a.off)
+    .slice(0, 20);
+  return { deal: tips[0] ?? null, tips: tips.slice(1), gifts, bundles };
 }
 
 // ---------------------------------------------------------------- Amorelie
@@ -218,6 +239,17 @@ async function amorelieSearch() {
   };
 }
 
+/** Laufende, befristete Aktion („ACTIE“-Tag mit Enddatum in der Zukunft) */
+function activeAction(tags) {
+  const now = Date.now();
+  for (const t of Object.values(tags ?? {})) {
+    if (t.label_type !== 'ACTIE' || !t.end_date || t.end_date.startsWith('0000')) continue;
+    const end = Date.parse(t.end_date.replace(' ', 'T') + '+02:00');
+    if (end > now && (!t.start_date || Date.parse(t.start_date.replace(' ', 'T') + '+02:00') <= now)) return { end: new Date(end).toISOString() };
+  }
+  return null;
+}
+
 function amorelieProduct(h) {
   const eur = h.prices?.EUR ?? {};
   const regular = Math.round(Number(eur.prijs ?? h.prijs) * 100);
@@ -237,6 +269,8 @@ function amorelieProduct(h) {
     off: offPercent(price, was),
     soldOut: Number(h.voorraad) === 0,
     ean: h.ean ?? null,
+    combi: Boolean(h.is_combideal),
+    action: activeAction(h.tags),
   };
 }
 
@@ -261,7 +295,26 @@ async function amorelie() {
       console.warn('Amorelie Kategorie', cat.id, e.message);
     }
   }
-  return { sale: dedupe(sale).filter((p) => p.off > 0), popular, boxes: dedupe(boxes), categories };
+  // Einmal über alles Lieferbare: Kombi-Deals (Bundles) und befristete Aktionen
+  const all = [];
+  for (let page = 0; page < 8; page++) {
+    const hits = await search({
+      filters: 'voorraad:1',
+      hitsPerPage: '1000',
+      page: String(page),
+      attributesToRetrieve: 'titel,link,image,prices.EUR,prijs,voorraad,ean,tags,is_combideal',
+    });
+    all.push(...hits);
+    if (hits.length < 1000) break;
+  }
+  const daily = {
+    bundles: all.filter((p) => p.combi).sort((a, b) => b.off - a.off).slice(0, 30),
+    actions: all
+      .filter((p) => p.action && p.off > 0)
+      .sort((a, b) => a.action.end.localeCompare(b.action.end) || b.off - a.off)
+      .slice(0, 30),
+  };
+  return { sale: dedupe(sale).filter((p) => p.off > 0), popular, boxes: dedupe(boxes), categories, daily };
 }
 
 // ---------------------------------------------------------------- Zusammenführen
@@ -270,11 +323,49 @@ function dedupe(list) {
   return [...new Map(list.map((p) => [p.id, p])).values()];
 }
 
-const slim = ({ soldOut, bestseller, ean, ...p }) => p;
+const slim = ({ soldOut, bestseller, ean, label, dealPos, minOrder, worth, combi, action, ...p }) => ({
+  ...p,
+  ...(minOrder ? { minOrder } : {}),
+  ...(worth && p.price === 0 ? { worth } : {}),
+  ...(action ? { endsAt: action.end } : {}),
+});
 
 function withTrend(list, previous) {
   const before = new Map((previous ?? []).map((p, i) => [p.id, i]));
   return list.map((p, i) => ({ ...slim(p), rank: i + 1, prevRank: before.has(p.id) ? before.get(p.id) + 1 : null }));
+}
+
+const euro = (cents) => (cents / 100).toFixed(2).replace('.', ',') + ' €';
+
+/** Einstellungen, die die App als JSON an ntfy.sh/<Thema>-config schickt (ntfy hält sie 12 Std.) */
+async function appSettings() {
+  const topic = process.env.NTFY_TOPIC;
+  if (!topic) return {};
+  try {
+    const res = await fetch(`https://ntfy.sh/${topic}-config/json?poll=1&since=all`);
+    const lines = (await res.text()).trim().split('\n').filter(Boolean);
+    const last = lines.map((l) => JSON.parse(l)).filter((e) => e.event === 'message').at(-1);
+    if (!last) return {};
+    const cfg = JSON.parse(last.message);
+    return { boxMaxPrice: Number.isFinite(cfg.boxMaxPrice) ? cfg.boxMaxPrice : null, settingsAt: new Date(last.time * 1000).toISOString() };
+  } catch (e) {
+    console.warn('Einstellungen', e.message);
+    return {};
+  }
+}
+
+/** SMS über Twilio – nur wenn die Zugangsdaten als Secrets gesetzt sind */
+async function sms(body) {
+  const { TWILIO_SID: sid, TWILIO_TOKEN: token, TWILIO_FROM: from, SMS_TO: to } = process.env;
+  if (!sid || !token || !from || !to) return console.log('[SMS aus]', body);
+  for (const number of to.split(',').map((n) => n.trim()).filter(Boolean)) {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: 'POST',
+      headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') },
+      body: new URLSearchParams({ To: number, From: from, Body: body }),
+    }).catch((e) => ({ ok: false, statusText: e.message }));
+    if (!res.ok) console.warn('SMS fehlgeschlagen', res.status ?? '', res.statusText);
+  }
 }
 
 async function notify(title, message, url) {
@@ -310,6 +401,7 @@ async function main() {
   const eisTop = skipEis ? null : await safe('eis Beliebt', eisPopular, null);
   const eisBox = skipEis ? null : await safe('eis Boxen', eisBoxes, null);
   const eisCats = skipEis ? null : await safe('eis Kategorien', eisCategories, null);
+  const eisDay = skipEis ? null : await safe('eis Tagesdeals', eisDaily, null);
   const amo = await safe('Amorelie', amorelie, null);
 
   // Was nicht geladen werden konnte, bleibt beim letzten Stand
@@ -340,6 +432,27 @@ async function main() {
   }
   boxList.sort((a, b) => Number(b.available) - Number(a.available) || b.firstSeen.localeCompare(a.firstSeen));
 
+  const daily = {
+    eis: eisDay
+      ? { deal: eisDay.deal && slim(eisDay.deal), tips: eisDay.tips.map(slim), gifts: eisDay.gifts.map(slim), bundles: eisDay.bundles.map(slim) }
+      : (prev?.daily?.eis ?? { deal: null, tips: [], gifts: [], bundles: [] }),
+    amo: amo?.daily ? { bundles: amo.daily.bundles.map(slim), actions: amo.daily.actions.map(slim) } : (prev?.daily?.amo ?? { bundles: [], actions: [] }),
+  };
+
+  // Box-Preisalarm: Grenze kommt aus der App (über ntfy) und wird im state gemerkt
+  const settings = (state.settings = { ...(state.settings ?? {}), ...(await appSettings()) });
+  if (settings.boxMaxPrice) {
+    for (const box of boxList) {
+      const known = state.boxes[box.id];
+      if (!box.available || box.price > settings.boxMaxPrice || known.alertedPrice === box.price) continue;
+      const shopName = box.shop === 'eis' ? 'eis.de' : 'Amorelie';
+      const text = `${box.name} bei ${shopName} für ${euro(box.price)} – unter deiner Grenze von ${euro(settings.boxMaxPrice)}`;
+      await notify('Mystery-Box im Wunschpreis!', text, box.url);
+      await sms(`Schnäppchenherz: ${text} ${box.url}`);
+      known.alertedPrice = box.price;
+    }
+  }
+
   // Kategorien: was in diesem Lauf fehlt, bleibt beim letzten Stand
   const prevCats = new Map((prev?.categories ?? []).map((cat) => [cat.id, cat]));
   const categories = CATEGORIES.map(({ id, label }) => ({
@@ -356,7 +469,9 @@ async function main() {
   // Preisverlauf: ein Punkt pro Änderung, [Tag, Cent]
   const day = today();
   const cutoff = new Date(Date.now() - MAX_HISTORY_DAYS * 864e5).toISOString().slice(0, 10);
-  for (const p of [...deals, ...popular.eis, ...popular.amo, ...boxList, ...categories.flatMap((cat) => [...cat.eis, ...cat.amo])]) {
+  const dailyItems = [...daily.eis.tips, ...daily.eis.gifts, ...daily.eis.bundles, ...daily.amo.bundles, ...daily.amo.actions];
+  if (daily.eis.deal) dailyItems.push(daily.eis.deal);
+  for (const p of [...deals, ...popular.eis, ...popular.amo, ...boxList, ...categories.flatMap((cat) => [...cat.eis, ...cat.amo]), ...dailyItems]) {
     const h = (history[p.id] ??= { name: p.name, shop: p.shop, url: p.url, image: p.image, points: [] });
     Object.assign(h, { name: p.name, url: p.url, image: p.image, seen: day });
     const last = h.points.at(-1);
@@ -393,7 +508,7 @@ async function main() {
     if (eis && am) Object.assign(twins, { [eis]: am, [am]: eis });
   }
 
-  writeJson('latest.json', { updatedAt: now, errors, deals, popular, boxes: boxList, categories, twins });
+  writeJson('latest.json', { updatedAt: now, errors, deals, popular, boxes: boxList, categories, daily, settings, twins });
   writeJson('history.json', history);
   writeJson('state.json', state);
   console.log(

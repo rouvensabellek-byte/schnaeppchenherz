@@ -13,7 +13,9 @@ import { Detail } from './src/screens/Detail';
 import { Popular } from './src/screens/Popular';
 import { Watchlist } from './src/screens/Watchlist';
 import { c, font } from './src/theme';
+import { Backdrop, Glass } from './src/glass';
 import { DetailsContext, Icon, IconName, tap } from './src/ui';
+import { useSettings } from './src/settings';
 import { useWatch } from './src/watch';
 
 type Tab = 'deals' | 'cats' | 'popular' | 'boxes' | 'watch';
@@ -54,6 +56,7 @@ function Shell() {
   const insets = useSafeAreaInsets();
   const { latest, history, loading, error, refresh } = useDeals();
   const { watch, toggle, isWatched, newBoxes } = useWatch(latest);
+  const { settings, update, serverKnows } = useSettings(latest);
   const [tab, setTab] = useState<Tab>('deals');
   const [open, setOpen] = useState<Product | null>(null);
   const boxBadge = newBoxes.length > 0;
@@ -65,16 +68,17 @@ function Shell() {
   return (
     <DetailsContext.Provider value={setOpen}>
       <View style={styles.root}>
+        <Backdrop />
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {tab === 'deals' && <Deals {...common} history={history} newBoxes={newBoxes} openBoxes={() => setTab('boxes')} />}
           {tab === 'cats' && <Categories {...common} history={history} />}
           {tab === 'popular' && <Popular {...common} />}
-          {tab === 'boxes' && <Boxes {...common} newBoxes={newBoxes} />}
+          {tab === 'boxes' && <Boxes {...common} newBoxes={newBoxes} settings={settings} update={update} serverKnows={serverKnows} />}
           {tab === 'watch' && <Watchlist latest={latest} history={history} watch={watch} open={openShop} />}
         </SafeAreaView>
 
-        <View style={[styles.nav, { bottom: Math.max(insets.bottom, 12) + 4 }]}>
+        <Glass style={[styles.nav, { bottom: Math.max(insets.bottom, 12) + 4 }]} tint="rgba(255,228,240,0.45)" interactive>
           {TABS.map((t) => {
             const active = t.id === tab;
             return (
@@ -89,12 +93,12 @@ function Shell() {
                 accessibilityLabel={t.label}
                 accessibilityState={{ selected: active }}
               >
-                <Icon name={t.icon} color={active ? c.ink : c.navIcon} />
+                <Icon name={t.icon} color={active ? c.ink : c.inkSoft} />
                 {t.id === 'boxes' && boxBadge && !active ? <View style={styles.dot} /> : null}
               </Pressable>
             );
           })}
-        </View>
+        </Glass>
 
         <Modal visible={!!open} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setOpen(null)}>
           <SafeAreaProvider>
@@ -124,15 +128,14 @@ const styles = StyleSheet.create({
     right: 16,
     height: 68,
     borderRadius: 34,
-    backgroundColor: c.plum,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    shadowColor: c.plum,
-    shadowOpacity: 0.25,
+    shadowColor: c.hot,
+    shadowOpacity: 0.18,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
   },
   navBtn: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
-  dot: { position: 'absolute', top: 10, right: 11, width: 10, height: 10, borderRadius: 5, backgroundColor: c.hot, borderWidth: 2, borderColor: c.plum },
+  dot: { position: 'absolute', top: 10, right: 11, width: 10, height: 10, borderRadius: 5, backgroundColor: c.hot, borderWidth: 2, borderColor: '#fff' },
 });

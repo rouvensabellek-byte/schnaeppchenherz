@@ -1,7 +1,8 @@
 // Mischung aus „Bonbon“ (Grundfarben, Navigation) und „Sorbet“ (Detail-Kacheln)
 export const c = {
-  bg: '#FFF4F7',
-  card: '#FFFFFF',
+  bg: '#FFF6FA',
+  // leicht durchscheinend, damit die Pastell-Wolken durchschimmern
+  card: 'rgba(255,255,255,0.72)',
   ink: '#4A2340',
   inkSoft: '#7A5A70',
   plum: '#4A2340',
@@ -34,5 +35,8 @@ export const font = {
   bold: 'Nunito_700Bold',
   black: 'Nunito_800ExtraBold',
 };
+
+// Hintergrund-Wolken hinter dem Glas
+export const blobs = ['#FFC8DC', '#DCD0FF', '#C8F0DC', '#FFE1C2', '#CFE6FF'];
 
 export const euro = (cents: number) => (cents / 100).toFixed(2).replace('.', ',') + ' €';

@@ -14,6 +14,12 @@ export type Product = {
   was: number | null;
   wasKind: 'vorher' | 'uvp';
   off: number;
+  /** Gratisartikel: kostenlos ab diesem Bestellwert (Cent) */
+  minOrder?: number;
+  /** Gratisartikel: Warenwert laut Shop (Cent) */
+  worth?: number;
+  /** Befristete Aktion: Ende als ISO-Zeit */
+  endsAt?: string;
 };
 
 export type Ranked = Product & { rank: number; prevRank: number | null };
@@ -35,6 +41,12 @@ export type Latest = {
   popular: Record<Shop, Ranked[]>;
   boxes: Box[];
   categories?: Category[];
+  daily?: {
+    eis: { deal: Product | null; tips: Product[]; gifts: Product[]; bundles: Product[] };
+    amo: { bundles: Product[]; actions: Product[] };
+  };
+  /** Was der Server zuletzt an App-Einstellungen gelesen hat */
+  settings?: { boxMaxPrice?: number | null; settingsAt?: string };
   twins: Record<string, string>;
 };
 
@@ -107,7 +119,9 @@ export function useDeals() {
 /** Alle bekannten Produkte nach ID – für Merkliste und Detailansicht */
 export function catalog(latest: Latest): Map<string, Product> {
   const cats = (latest.categories ?? []).flatMap((cat) => [...cat.eis, ...cat.amo]);
-  const all = [...cats, ...latest.boxes, ...latest.popular.eis, ...latest.popular.amo, ...latest.deals];
+  const d = latest.daily;
+  const daily = d ? [...(d.eis.deal ? [d.eis.deal] : []), ...d.eis.tips, ...d.eis.gifts, ...d.eis.bundles, ...d.amo.bundles, ...d.amo.actions] : [];
+  const all = [...cats, ...daily, ...latest.boxes, ...latest.popular.eis, ...latest.popular.amo, ...latest.deals];
   return new Map(all.map((p) => [p.id, p]));
 }
 

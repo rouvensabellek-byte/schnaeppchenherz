@@ -6,6 +6,8 @@ BOT="$HOME/Library/Application Support/schnaeppchenherz-bot"
 NODE="$HOME/.local/share/fnm/aliases/default/bin/node"
 export GIT_SSH_COMMAND="ssh -i '$BOT/deploy_key' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 export NTFY_TOPIC="$(cat "$BOT/ntfy_topic")"
+# Optional: SMS-Zugangsdaten (TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, SMS_TO) als KEY=Wert-Zeilen
+[ -f "$BOT/sms.env" ] && set -a && . "$BOT/sms.env" && set +a
 
 cd "$BOT/repo" || exit 1
 echo "== $(date)"

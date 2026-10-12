@@ -4,6 +4,7 @@ import { createContext, ReactNode, useContext } from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { HistoryEntry, Product, Shop } from './data';
+import { Glass } from './glass';
 import { c, euro, font, shopStyle } from './theme';
 
 // ---------------------------------------------------------------- Icons (Strich-SVG wie im Entwurf)
@@ -20,6 +21,7 @@ const ICONS = {
   out: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
   chart: 'M3 3v18h18M7 14l4-4 3 3 5-6',
   grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  message: 'M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z',
 };
 export type IconName = keyof typeof ICONS;
 
@@ -62,7 +64,7 @@ export function H2({ children, right }: { children: ReactNode; right?: ReactNode
 
 export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { id: T; label: string }[]; onChange: (v: T) => void }) {
   return (
-    <View style={s.seg}>
+    <Glass style={s.seg}>
       {options.map((o) => {
         const active = o.id === value;
         return (
@@ -80,7 +82,7 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
           </Pressable>
         );
       })}
-    </View>
+    </Glass>
   );
 }
 
@@ -245,7 +247,7 @@ export const s = StyleSheet.create({
   h2: { fontFamily: font.displayMedium, fontSize: 21, color: c.ink },
   chip: { alignSelf: 'flex-start', paddingHorizontal: 9, paddingVertical: 3, borderRadius: 10 },
   chipText: { fontFamily: font.black, fontSize: 11, color: c.ink },
-  seg: { flexDirection: 'row', gap: 6, backgroundColor: c.card, padding: 5, borderRadius: 22 },
+  seg: { flexDirection: 'row', gap: 6, padding: 5, borderRadius: 22 },
   segBtn: { flex: 1, height: 44, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   segText: { fontFamily: font.bold, fontSize: 14, color: c.inkSoft },
   card: { backgroundColor: c.card, borderRadius: 24, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center' },

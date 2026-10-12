@@ -3,6 +3,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 import { Box, History, Latest, Product, Shop } from '../data';
 import { c, euro, font } from '../theme';
 import { Box3D, Empty, H2, Icon, ProductCard, Segmented, tap } from '../ui';
+import { TodaySection } from './Today';
 
 type Filter = 'all' | Shop;
 type Sort = 'off' | 'price';
@@ -81,6 +82,9 @@ export function Deals({
         </Pressable>
       ) : null}
 
+      <TodaySection latest={latest} open={open} />
+
+      <H2>Alle Angebote</H2>
       <Segmented<Filter>
         value={filter}
         onChange={setFilter}
