@@ -16,6 +16,16 @@ GitHub Actions (alle 3 Std.)          iPhone
 - `data/history.json` speichert den Preisverlauf: ein Punkt pro Preisänderung, höchstens 400 Tage.
 - `data/state.json` merkt sich, welche Boxen schon bekannt sind (für den Alarm).
 
+## eis.de läuft über den Mac
+
+eis.de sperrt die Server von GitHub aus (Fehler 403). Deshalb holt ein launchd-Job auf dem Mac (`~/Library/LaunchAgents/de.schnaeppchenherz.bot.plist`) alle 3 Stunden beide Shops ab und pusht die Daten. Er nutzt `scraper/mac-bot.sh` in einem eigenen Klon unter `~/Library/Application Support/schnaeppchenherz-bot/`. Zum Hochladen dient ein Deploy-Key, der nur für dieses Repo gilt. Das Protokoll liegt dort in `bot.log`. GitHub selbst holt nur Amorelie (`SKIP_EIS=1`).
+
+Abschalten:
+
+```bash
+launchctl bootout gui/$(id -u)/de.schnaeppchenherz.bot
+```
+
 ## Einrichten
 
 1. Auf github.com ein **öffentliches** Repo `schnaeppchenherz` anlegen. Es muss öffentlich sein, damit die App die Daten ohne Login lesen kann.
