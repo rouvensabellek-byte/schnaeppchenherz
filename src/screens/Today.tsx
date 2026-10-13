@@ -10,6 +10,13 @@ const day = (iso: string) => {
   return `${d.getDate()}.${d.getMonth() + 1}.`;
 };
 
+const endText = (iso?: string) => {
+  if (!iso) return 'endet heute um 23:59 Uhr';
+  const end = new Date(iso);
+  const sameDay = end.toDateString() === new Date().toDateString();
+  return sameDay ? `endet heute um ${end.getHours()}:${String(end.getMinutes()).padStart(2, '0')} Uhr` : `läuft bis ${day(iso)}`;
+};
+
 /** Preiszeile je nach Art: gratis ab Bestellwert, befristet oder normal reduziert */
 function PriceLine({ p, big }: { p: Product; big?: boolean }) {
   if (p.price === 0) {
@@ -18,7 +25,7 @@ function PriceLine({ p, big }: { p: Product; big?: boolean }) {
         <Text style={[st.free, big && { fontSize: 24 }]}>Gratis</Text>
         <Text style={st.small}>
           {p.minOrder ? `ab ${euro(p.minOrder)} Bestellwert` : 'zur Bestellung'}
-          {p.worth || p.was ? ` · Wert ${euro(p.worth ?? p.was ?? 0)}` : ''}
+          {p.was || p.worth ? ` · Wert ${euro(p.was ?? p.worth ?? 0)}` : ''}
         </Text>
       </View>
     );
@@ -53,7 +60,7 @@ function Hero({ p, open }: { p: Product; open: (p: Product) => void }) {
             {p.name}
           </Text>
           <PriceLine p={p} big />
-          <Text style={st.small}>endet heute um 23:59 Uhr</Text>
+          <Text style={st.small}>{endText(p.endsAt)}</Text>
         </View>
         <View style={st.heroPic}>{p.image ? <Image source={p.image} style={{ width: 112, height: 112 }} contentFit="contain" /> : null}</View>
       </Glass>
@@ -108,7 +115,9 @@ export function TodaySection({ latest, open }: { latest: Latest; open: (p: Produ
   if (!d) return null;
   return (
     <View style={{ gap: 20 }}>
-      {d.eis.deal ? <Hero p={d.eis.deal} open={open} /> : null}
+      {(d.eis.deals ?? (d.eis.deal ? [d.eis.deal] : [])).map((p) => (
+        <Hero key={p.id} p={p} open={open} />
+      ))}
       <Rail title="Weitere Tagestipps" hint="eis.de · gratis zur Bestellung" items={d.eis.tips} open={open} />
       <Rail title="Gratis dazu" hint="Kostenlos ab Mindestbestellwert" items={d.eis.gifts} open={open} />
       <Rail title="Bundles & Sets" hint="Mehrere Produkte zum Paketpreis" items={mix(d.eis.bundles, d.amo.bundles)} open={open} />

@@ -103,6 +103,7 @@ function eisProducts(html) {
       label: field(chunk, /"label":"([^"]*)","composedMaterials"/) ?? null,
       dealPos: Number(field(chunk, /"dailyDealPosition":\{[^{]*"values":\{"id":\d+,"label":"(\d+)"/) ?? 0),
       minOrder: Number(field(chunk, /"price\.minimumOrderValue":\{[^{]*"values":\[\{"fieldSet":\[\[\{"value":"(\d+)"/) ?? 0) || null,
+      dealEnd: field(chunk, /"dailyDealEndDate":\{[^{]*"values":\[\{"fieldSet":\[\[\{"value":"([^"]+)"/) ?? null,
       worth: Number(field(chunk, /"price\.comparisonPrice":\{[^{]*"values":\[\{"fieldSet":\[\[\{"value":"(\d+)"/) ?? 0) || null,
     });
   });
@@ -202,14 +203,21 @@ async function eisCategories() {
 async function eisDaily() {
   const home = eisProducts(await get('https://www.eis.de/'));
   const freePage = eisProducts(await get('https://www.eis.de/lovetoys/kostenlose-toys'));
-  const tips = home.filter((p) => p.label === 'Tagestipp' && p.dealPos > 0 && !p.soldOut).sort((a, b) => a.dealPos - b.dealPos);
-  const tipIds = new Set(tips.map((p) => p.id));
+  const byPos = (a, b) => a.dealPos - b.dealPos;
+  // Laufende Aktion = Enddatum liegt in der Zukunft; das Datum wird als endsAt mitgegeben
+  const running = (p) => !p.soldOut && (!p.dealEnd || Date.parse(p.dealEnd.length === 10 ? p.dealEnd + 'T23:59:59+02:00' : p.dealEnd) > Date.now());
+  const withEnd = (p) => ({ ...p, action: p.dealEnd ? { end: new Date(Date.parse(p.dealEnd.length === 10 ? p.dealEnd + 'T23:59:59+02:00' : p.dealEnd)).toISOString() } : null });
+  const deals = home.filter((p) => p.label === 'Deal des Tages' && running(p)).sort(byPos).map(withEnd);
+  const tips = home.filter((p) => p.label === 'Tagestipp' && p.dealPos > 0 && running(p)).sort(byPos).map(withEnd);
+  const tipIds = new Set([...deals, ...tips].map((p) => p.id));
   const gifts = dedupe([...freePage, ...home.filter((p) => p.label === 'Kostenlos')]).filter((p) => p.price === 0 && !p.soldOut && !tipIds.has(p.id));
   const bundles = eisProducts(await get('https://www.eis.de/lovetoys/sexspielzeug-sets'))
     .filter((p) => p.price > 0 && p.off > 0 && !p.soldOut)
     .sort((a, b) => b.off - a.off)
     .slice(0, 20);
-  return { deal: tips[0] ?? null, tips: tips.slice(1), gifts, bundles };
+  // Ohne eigenen „Deal des Tages“ springt der erste Tagestipp ein
+  const top = deals.length ? deals : tips.slice(0, 1);
+  return { deal: top[0] ?? null, deals: top, tips: deals.length ? tips : tips.slice(1), gifts, bundles };
 }
 
 // ---------------------------------------------------------------- Amorelie
@@ -323,7 +331,7 @@ function dedupe(list) {
   return [...new Map(list.map((p) => [p.id, p])).values()];
 }
 
-const slim = ({ soldOut, bestseller, ean, label, dealPos, minOrder, worth, combi, action, ...p }) => ({
+const slim = ({ soldOut, bestseller, ean, label, dealPos, dealEnd, minOrder, worth, combi, action, ...p }) => ({
   ...p,
   ...(minOrder ? { minOrder } : {}),
   ...(worth && p.price === 0 ? { worth } : {}),
@@ -434,7 +442,13 @@ async function main() {
 
   const daily = {
     eis: eisDay
-      ? { deal: eisDay.deal && slim(eisDay.deal), tips: eisDay.tips.map(slim), gifts: eisDay.gifts.map(slim), bundles: eisDay.bundles.map(slim) }
+      ? {
+          deal: eisDay.deal && slim(eisDay.deal),
+          deals: eisDay.deals.map(slim),
+          tips: eisDay.tips.map(slim),
+          gifts: eisDay.gifts.map(slim),
+          bundles: eisDay.bundles.map(slim),
+        }
       : (prev?.daily?.eis ?? { deal: null, tips: [], gifts: [], bundles: [] }),
     amo: amo?.daily ? { bundles: amo.daily.bundles.map(slim), actions: amo.daily.actions.map(slim) } : (prev?.daily?.amo ?? { bundles: [], actions: [] }),
   };
@@ -470,7 +484,7 @@ async function main() {
   const day = today();
   const cutoff = new Date(Date.now() - MAX_HISTORY_DAYS * 864e5).toISOString().slice(0, 10);
   const dailyItems = [...daily.eis.tips, ...daily.eis.gifts, ...daily.eis.bundles, ...daily.amo.bundles, ...daily.amo.actions];
-  if (daily.eis.deal) dailyItems.push(daily.eis.deal);
+  dailyItems.push(...(daily.eis.deals ?? (daily.eis.deal ? [daily.eis.deal] : [])));
   for (const p of [...deals, ...popular.eis, ...popular.amo, ...boxList, ...categories.flatMap((cat) => [...cat.eis, ...cat.amo]), ...dailyItems]) {
     const h = (history[p.id] ??= { name: p.name, shop: p.shop, url: p.url, image: p.image, points: [] });
     Object.assign(h, { name: p.name, url: p.url, image: p.image, seen: day });
